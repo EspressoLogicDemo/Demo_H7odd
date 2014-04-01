@@ -1,0 +1,186 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<!-- *******************************
+  The page for LogicDemo. This page is driven from LogicDemo.js.
+  
+************************************ -->
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<link href="//netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" rel="stylesheet" >
+	<script src="js/jquery-1.9.1.js" type="text/javascript"></script>
+	<script src="js/handlebars.js" type="text/javascript"></script>
+	<script src="js/jquery.jstree.js" type="text/javascript"></script>
+	<script src="//netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script>
+	<script src="js/LogicPlan.js" type="text/javascript"></script>
+	<script src="js/LogicDemo.js" type="text/javascript"></script>
+	<title>Logic Demo</title>
+	<link rel="icon" href="favicon.ico" type="image/x-icon" />
+	<link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
+	<style>
+		.EventPropTable { font: 10pt Verdana, sans-serif; }
+		.EventPropName {text-align: right; background-color: #BBBBBB; padding: 6px;}
+		body {
+			font: 10pt Verdana, sans-serif;
+		}
+		.tooltip {
+			background-color: #FFFFAA;
+			opacity: 1.0 !important;
+		}
+		.tooltip-inner {
+			color: #000000;
+			background-color: #FFFFAA;
+			padding: 7px;
+			max-width: 350px;
+		}
+	</style>
+</head>
+<body>
+	<div id="messageDiv" style="background-color: #FFFF99; text-align: center; display: none; width: 500px; height: 30px;"></div>
+	<h3 style="padding-left: 100px;">Orders for customer:
+		<select name="custName" id="custNameControl" onchange="refreshCustomer()" style="font-size: 13pt;"></select>
+	</h3>
+	
+	<table border="0" cellspacing="10"><tr><td valign="top">
+	
+		<table border="0">
+			<tr>
+				<td>Name:</td>
+				<td id="customerName"></td>
+			</tr>
+			<tr>
+				<td>Balance:</td>
+				<td align="right" id="custBalanceTd" class="ttTop"
+					title="Sum(purchaseorders.amountTotal) where paid = false"></td>
+			</tr>
+			<tr>
+				<td>Credit limit:</td>
+				<td align="right">
+					<input type="text" size="12" style="text-align: right; font-size:10pt;" class="ttBottom"
+						title="Constraint: balance &lt;= creditLimit" id="creditLimit"
+						onchange="if ( ! isNumber(this.value)) {alert('Invalid number'); return false;} updateCreditLimit(this.value);"
+					/>
+				</td>
+			</tr>
+		</table>
+	
+		<table cellpadding="3" cellspacing="0" id="ordersTable">
+		</table>
+
+		<table>
+			<tr>
+				<td colspan="3"><button onclick="createOrder()">Create new order</button></td>
+				<td colspan="2" nowrap>
+					<!-- <input type="checkbox" id="showTxSummary"/>
+					<label for="showTxSummary">Show transaction summary</label> -->
+				</td>
+			</tr>
+		</table>		
+	</td>
+<!-- 
+	<td id="txSummary" class="EventPropTable" style="display: none; padding: 5px; margin-left: 30px; border: 1px solid #AAAAAA;" valign="top">
+		<h4>Logic Execution Plan</h4>
+		<div>
+			<div id="eventsTreeContainer" style="padding-bottom: 10px;">
+				<div id="eventsTree" style="overflow: auto;"></div>
+			</div>
+			<div id="eventDetails" style="height: 100%; background-color: #DDDDDD; display: block; padding: 4px;">
+				Select a node in the tree
+			</div>
+		</div>
+	</td>
+ -->
+	</tr></table>
+	
+<!-- ************************************************************************************************ -->
+<!-- Template for orders -->
+<script id="orderTemplate" type="text/html">
+		<tr id="orderRow{{order_number}}"><td><table>
+		<thead style="background-color: #1FA0A0; color: #EEEEEE;">
+			<tr>
+				<td>&nbsp;</td>
+				<td nowrap style="border-right: 1px solid #AAAAAA;">Order #</td>
+				<td nowrap style="border-right: 1px solid #AAAAAA;">Amount total</td>
+				<td nowrap>Order paid</td>
+				<td>&nbsp;</td>
+			</tr>
+		</thead>
+		<tr valign="top" style="background-color: #E4E4E4;">
+			<td style="font-size: 9pt;">
+				<button onclick="deleteOrder({{order_number}})">Delete</button>
+			</td>
+			<td align="center">{{order_number}}</td>
+			<td align="right">
+				<div class="ttBottom" id="amountTotal{{order_number}}" title="Sum(lineitems.amount)"
+					>${{amount_total}}</div></td>
+			<td align="center" id="orderPaidCheckbox{{order_number}}"><input type="checkbox" 
+					onchange="flipOrderPaid({{order_number}}, this.checked);" {{#paid}}checked{{/paid}} /></td>
+			<td rowspan="2">
+				<table cellspacing="0" cellpadding="4" class="itemsTable">
+					<thead>
+						<tr style="background-color: #BBBBBB;"><td>&nbsp;</td><td nowrap>Item #</td><td>Product</td><td>Quantity</td><td nowrap>Unit price</td><td>Amount</td></tr>
+					</thead>
+					<tbody id="itemsForOrder{{order_number}}"></tbody>
+				</table>
+			</td>
+		</tr>
+		<tr><td colspan="4" valign="top">
+			<input type="text" size="30" style="font-size:10pt; width: 95%;" value="{{notes}}" 
+					onchange="updateNotes({{order_number}}, this.value)" />
+		</td></tr>
+		<tr style="background-color: #CCCCCC;"><td colspan="6"><center>
+			Reassign this order to customer: {{{getReassignCustomerSelect}}}
+			&nbsp;&nbsp;&nbsp;<button onclick="createLineitem({{order_number}})">Create new line item</button>
+		</center></td></tr>
+		<tr><td colspan="5">&nbsp;</td></tr>
+		</table></td></tr>
+</script>
+
+<!-- Template for the line items -->
+<script id="lineitemTemplate" type="text/html">
+	<tr id="lineitemRow{{lineitem_id}}">
+		<td style="font-size: 9px; border: 1px solid #888888;">
+			<button onclick="deleteLineitem({{lineitem_id}})">Delete</button>
+		</td>
+		<td style="border: 1px solid #888888;">{{lineitem_id}}</td>
+		<td style="border: 1px solid #888888;">{{{getProductSelect}}}</td>
+		<td style="border: 1px solid #888888;">
+			<input type="number" min="1" size="5" style="text-align: right; font-size:10pt; width: 5em;"
+				value="{{qty_ordered}}" 
+				onchange="if ( ! isNumber(this.value)) {alert('Invalid number:' + this.value); this.focus(); return false;} updateQuantity({{lineitem_id}}, this.value);"
+				id="lineItemQuantity{{lineitem_id}}" />
+		</td>
+		<td style="border: 1px solid #888888;">
+			<input type="text" size="8" style="text-align: right; font-size:10pt;" id="productPrice{{lineitem_id}}"
+				value="${{product_price}}" class="ttBottom"
+				title="Copy: product.price"
+				onchange="if ( ! isNumber(this.value)) {alert('Invalid number'); return false;} updatePrice({{lineitem_id}}, this.value)"
+			/>
+		</td>
+		<td align="right" style="border: 1px solid #888888;" class="ttTop"
+			id="amount{{lineitem_id}}"
+			title="Formula: Quantity * Unit price">${{amount}}
+		</td>
+	</tr>
+</script>
+
+<!-- Template for the product select -->
+<script id="productSelectTemplate" type="text/html">
+<select name="productName{{ItemNum}}" id="productSelect{{ItemNum}}" autocomplete="off"
+	onchange="updateProduct({{ItemNum}}, this.options[this.selectedIndex].value)"
+	style="font-size: 10pt;">
+	{{#prodSelect products}}{{../ProductNumber}}{{/prodSelect}} {{! Note: the product number is used in the function }}
+</select>
+</script>
+
+<!-- Template for the customer select -->
+<script id="reassignCustomerSelectTemplate" type="text/html">
+<select name="custName{{orderId}}" 
+	onchange="reassignOrder({{orderId}}, this.options[this.selectedIndex].text, this.options[this.selectedIndex].value); this.selectedIndex=0;"
+	style="font-size: 10pt;">
+	<option selected>- select a customer -
+	{{{options}}}
+</select>
+</script>
+
+</body>
+</html>
